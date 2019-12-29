@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <script src="https://d3js.org/d3.v4.min.js"></script>
+    <style>
+      body {
+        font: 10px sans-serif;
+      }
+      .line {
+        stroke-width: 2px;
+        opacity: 1;
+        pointer-events: none;
+        fill: none;
+      }
+      .lineSelection {
+        stroke: black;
+        stroke-width: 3px;
+        pointer-events: none;
+      }
+      .circleSelection{
+        stroke: black;
+        fill: black;
+        pointer-events: none;
+      }
+      .area {
+        opacity: 0.5;
+      }
+      .axis {
+        stroke: black;
+        stroke-width: 0px;
+        opacity: 0.25;
+
+      }
+      #areaSelection {
+        fill: #F44336;
+        opacity: .9;
+      }
+      #chart {
+        position: fixed;
+        left: 0px;
+        right: 0px;
+        top: 0px;
+        bottom: 0px;
+        z-index: -1;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="chart"></div>
+    <script>
+      var chartDiv = document.getElementById("chart");
+      var margin = {top: 20, right: 15, bottom: 45, left: 50}
+      var width = chartDiv.clientHeight - margin.left - margin.right + 150;
+      var height = chartDiv.clientHeight - margin.top - margin.bottom - 50;
+      var x = d3.scaleLinear()
+        .range([0, width - margin.right])
+        .domain([0, 12]);
+      var y = d3.scaleLinear()
+        .range([height, 0])
+        .domain([0, 2]);
+      var scale = d3.scaleLinear()
+        .range([0, height])
+        .domain([0, 1000]);
+
+      var scaleX = d3.scaleLinear()
+        .range([0,chartDiv.clientWidth])
+        .domain([0, 1000]);
+      var scaleY = d3.scaleLinear()
+        .range([height,0])
+        .domain([0, 1000]);
+
+      var colorScale = d3.scaleOrdinal()
+        .range(['#9ecae1','#6baed6','#4292c6','#2171b5','#08519c','#08306b'])
+        .domain([0,1,2,3,4,5,6,7,8,9,10,11]);
+
+
+      //CUSTOMIZATION VARIABLES
+      var tiltFactor = 0.05
+      var xshift = scaleX(500)
+      var yshift = 500
+
+      var valueline = d3.line()
+        .curve(d3.curveBasis)
+        .x(function(d,i) { return x(i); })
+        .y(function(d,i) { return y(d - (tiltFactor * i)); })
+
+      var area = d3.area()
+        .x(function(d,i) { return x(i); })
+        .y1(function(d,i) { return y(d - (tiltFactor * i)); })
+        .y0(function(d,i){return y(tiltFactor * i * -1)})
+        .curve(d3.curveBasis)
+
+      var zeroarea = d3.area()
+        .x(function(d,i) { return x(i); })
+        .y1(function(d,i){return y(tiltFactor * i * -1)})
+        .y0(function(d,i){return y(tiltFactor * i * -1)})
+        .curve(d3.curveBasis)
+
+      var zeroline = d3.line()
+        .curve(d3.curveBasis)
+        .x(function(d,i) { return x(i); })
+        .y(function(d,i){return y(tiltFactor * i * -1)})
+
+      var svg = d3.select("body").append("svg")
+        .attr("width", chartDiv.clientWidth + margin.right + margin.left - 20)
+        .attr("height", chartDiv.clientHeight + margin.top + margin.bottom )
+      .append("g")
+        .attr("transform",
+              "translate(" + margin.left + "," + margin.top + ")");
+
+      var data = [
+          {
+              "id": 23117,
+              "cellline": 437,
+              "drug": 40,
+              "dose": [
+                  0.98796,
+                  0.98632,
+                  0.96879,
+                  0.94042,
+                  0.8614,
+                  0.65382,
+                  0.49175,
+                  0.18123,
+                  0.09155
+              ]
+          },
+          {
+              "id": 63127,
+              "cellline": 603,
+              "drug": 40,
+              "dose": [
+                  0.97261,
+                  0.96823,
+                  0.936,
+                  0.89142,
+                  0.80996,
+                  0.64931,
+                  0.50282,
+                  0.32053,
+                  0.24654
+              ]
+          },
+          {
+              "id": 137354,
+              "cellline": 433,
+              "drug": 40,
+              "dose": [
+                  0.97912,
+                  0.97426,
+                  0.94694,
+                  0.90433,
+                  0.80767,
+                  0.59587,
+                  0.43343,
+                  0.21925,
+                  0.14631
+              ]
+          },
+          {
+              "id": 6658,
+              "cellline": 149,
+              "drug": 9,
+              "dose": [
+                  0.97897,
+                  0.97773,
+                  0.97089,
+                  0.96438,
+                  0.95737,
+                  0.93923,
+                  0.91523,
+                  0.83269,
+                  0.62792
+              ]
+          },
+          {
+              "id": 37598,
+              "cellline": 860,
+              "drug": 9,
+              "dose": [
+                  0.99113,
+                  0.99058,
+                  0.98107,
+                  0.96734,
+                  0.93897,
+                  0.86878,
+                  0.76762,
+                  0.50664,
+                  0.26062
+              ]
+          }
+      ]
+
+      var xdiff = 275 / (data.length - 1)
+      var ydiff = 275 / (data.length - 1)
+
+      //sort data by largest area to smallest
+      data.sort(function(a,b){
+        return b.dose.reduce(function(a, b) { return a + b; }, 0) - a.dose.reduce(function(a, b) { return a + b; }, 0)
+      })
+
+      var paths = svg.selectAll('paths')
+        .data(data)
+        .enter()
+        .append('g')
+          .attr('class','paths')
+          .attr('transform',function(d,i){
+            return "translate(" + scale(-xdiff * i + xshift) + "," + scale(ydiff * i - yshift) + ")"
+          })
+
+      //X axis
+      svg.append("line")
+        .attr('x1', x(0))
+        .attr('x2', x(8))
+        .attr('y1',y(0))
+        .attr('y2',y(tiltFactor * -8))
+        .style('stroke','black')
+        .attr('transform',function(d,i){
+          return "translate(" + scale(-xdiff * i - 325 + xshift) + "," + scale(ydiff * i - yshift + 325) + ")"
+        })
+      for (i = 0; i < 9; i++) {
+        svg.append("line")
+          .attr('x1', x(i))
+          .attr('x2', x(i) + scale(15))
+          .attr('y1', y(tiltFactor * -1 * i))
+          .attr('y2',y(tiltFactor * -1 * i) - scale(15))
+          .style('stroke','black')
+          .attr('transform',function(d,i){
+            return "translate(" + scale(-xdiff * i - 325 + xshift) + "," + scale(ydiff * i - yshift + 325) + ")"
+          })
+      }
+
+      //X and Y axis for every dosage
+      paths.append('line')
+        .attr('x1', x(0))
+        .attr('x2', x(8))
+        .attr('y1',y(0))
+        .attr('y2',y(tiltFactor * -8))
+        .attr('class','axis')
+
+      paths.append('line')
+        .attr('x1', x(0))
+        .attr('x2', x(0))
+        .attr('y1',y(0))
+        .attr('y2',y(1))
+        .attr('class','axis')
+
+
+      //line and area and label for dosage
+      paths.append('path')
+        .attr("id", function(d){return d.id})
+        .attr("class", "line")
+        .attr("d", function(d){return zeroline(d.dose)})
+        .style("stroke",function(d,i){return colorScale(i)})
+        .transition()
+          .duration(1000)
+          .attr("d", function(d){return valueline(d.dose)})
+
+      paths.append('path')
+        .attr("class", "area")
+        .attr("d", function(d){return zeroarea(d.dose)})
+        .style("fill",function(d,i){return colorScale(i)})
+        .on("mouseover", function(d,i) {
+          //highlight on mouseover
+          d3.select("#areaSelection").remove()
+          d3.selectAll(".lineSelection").remove()
+          d3.selectAll(".circleSelection").remove()
+          d3.selectAll(".textSelection").remove()
+
+          svg.append('path')
+            .attr("class", "area")
+            .attr('id',"areaSelection")
+            .attr("d",area(d.dose))
+            .attr('transform',
+              "translate(" + scale(-xdiff * i+ xshift) + "," + scale(ydiff * i - yshift) + ")"
+            )
+            .on("mouseout",function(d){
+              d3.select("#areaSelection").remove()
+              d3.selectAll(".lineSelection").remove()
+              d3.selectAll(".circleSelection").remove()
+              d3.selectAll(".textSelection").remove()
+            })
+          for (j = 0; j < 9; j++) {
+            svg.append("line")
+              .attr('class','lineSelection')
+              .attr('x1', x(j))
+              .attr('x2', x(j))
+              .attr('y1', y(tiltFactor * -1 * j))
+              .attr('y2',y(tiltFactor * -1 * j))
+              .attr('transform',
+                "translate(" + scale(-xdiff * i + xshift) + "," + scale(ydiff * i - yshift) + ")"
+              )
+              .transition()
+                .ease(d3.easeElasticOut.amplitude(1.2).period(0.4))
+                .duration(1200)
+                .delay(j*25)
+                .attr('y2',y(d.dose[j] - (tiltFactor * j)))
+            svg.append('circle')
+              .attr('class','circleSelection')
+              .attr('cx', x(j))
+              .attr('cy', y(tiltFactor * -1 * j))
+              .attr('r', scale(7.5))
+              .attr('transform',
+                "translate(" + scale(-xdiff * i + xshift) + "," + scale(ydiff * i - yshift) + ")"
+              )
+              .transition()
+                .ease(d3.easeElasticOut.amplitude(1.2).period(0.4))
+                .duration(1200)
+                .delay(j*25)
+                .attr('cy', y(d.dose[j] - (tiltFactor * j)))
+            svg.append('text')
+              .attr('class','textSelection')
+              .attr('x', x(j) + scale(15))
+              .attr('y', y(d.dose[j] - (tiltFactor * j)))
+              .text(d.dose[j])
+              .style('font-size', scale(15))
+              .attr('transform',
+                "translate(" + scale(-xdiff * i + xshift) + "," + scale(ydiff * i - yshift) + ")"
+              )
+          }
+        })
+        .transition()
+          .duration(1000)
+          .attr("d", function(d){return area(d.dose)})
+
+    </script>
+  </body>
+</html>
